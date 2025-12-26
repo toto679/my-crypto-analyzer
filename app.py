@@ -74,9 +74,24 @@ if df_main is not None:
         yearly_price = df.groupby('year')['price'].agg(['min', 'max']).reset_index()
         yearly_price['разлика'] = yearly_price['max'] - yearly_price['min']
         yearly_price['x (ръст)'] = yearly_price['max'] / yearly_price['min']
+        
+        # Графика
         fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, text_auto='.2f')
-        st.plotly_chart(fig_y, use_container_width=True)
+        st.plotly_chart(fig_y, use_container_width=True, key="yearly_chart_fixed")
+        
+        # Таблица
         st.dataframe(yearly_price.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
+
+        # --- НОВИТЕ МЕТРИКИ ---
+        avg_diff = yearly_price['разлика'].mean()
+        avg_x = yearly_price['x (ръст)'].mean()
+        avg_pct = (avg_x - 1) * 100
+        
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Средна разлика", f"${avg_diff:,.2f}")
+        col_b.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
+        col_c.metric("Среден ръст (%)", f"{avg_pct:,.2f}%")
+        # ----------------------
 
     with tabs[4]:
         df['MA50'] = df['price'].rolling(50).mean()

@@ -111,16 +111,44 @@ if uploaded_file:
         if mcap_col and sup_col:
             max_mcap = df[mcap_col[0]].max()
             last_supply = df[sup_col[0]].iloc[-1]
-            drops = [-60, -80, -95]
+            drops = [-60, -70, -80, -90, -95]
             cols = st.columns(len(drops))
             for i, d in enumerate(drops):
-                rp = math.floor((max_mcap * (100+d)/100) / last_supply)
-                cols[i].metric(f"{d}%", f"${rp:,}")
+                t_price = math.floor((max_mcap * (100 + d) / 100) / last_supply)
+                cols[i].metric(f"{d}%", f"${t_price:,}")
     with tabs[9]:
         df['EMA55'] = df['price'].ewm(span=55, adjust=False).mean()
-        # ...вашата Bull/Bear логика...
-        st.write("EMA 55 Анализ")
-        st.plotly_chart(px.line(df, x='data', y=['price', 'EMA55'], template="plotly_dark"), use_container_width=True)
+        highs, lows = [], []
+        curr = None
+        t_h, t_l = 0, float('inf')
+
+        for i in range(len(df)):
+            p, e = df['price'].iloc[i], df['EMA55'].iloc[i]
+            if p > e:
+                if curr != 'up':
+                    if t_l != float('inf'): lows.append(t_l)
+                    curr, t_h, t_l = 'up', p, float('inf')
+                elif p > t_h: t_h = p; highs.append(p)
+            else:
+                if curr != 'down':
+                    if t_h != 0: highs.append(t_h)
+                    curr, t_l, t_h = 'down', p, 0
+                elif p < t_l: t_l = p; lows.append(p)
+
+        b_m = sum(highs)/(len(highs)+1) if highs else 0
+        s_m = sum(lows)/(len(lows)+1) if lows else 0
+
+        c1, c2 = st.columns(2)
+        c1.metric("Bull Mean Target", f"${math.floor(b_m):,}")
+        c2.metric("Bear Mean Target", f"${math.floor(s_m):,}")
+        
+        fig_e = go.Figure()
+        fig_e.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.3))
+        fig_e.add_trace(go.Scatter(x=df['data'], y=df['EMA55'], name="EMA 55"))
+        fig_e.add_hline(y=b_m, line_dash="dash", line_color="green")
+        fig_e.add_hline(y=s_m, line_dash="dash", line_color="red")
+        fig_e.update_layout(template="plotly_dark", height=500)
+        st.plotly_chart(fig_e, use_container_width=True)
 
 else:
     st.info("👈 Качете файл.")

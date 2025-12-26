@@ -13,9 +13,26 @@ st.set_page_config(page_title="Анализатор", layout="wide")
 st.title("📊 Пълен Анализ: Всички Инструменти")
 
 # --- СТРАНИЧНА ЛЕНТА ---
+# --- СТРАНИЧНА ЛЕНТА ---
+# Проверяваме дали вече имаме зареден файл в паметта
+if 'shared_df' not in st.session_state:
+    st.session_state['shared_df'] = None
+
 uploaded_file = st.sidebar.file_uploader("Добави .ods файл", type=["ods"])
 
+# Ако е качен нов файл, го записваме
 if uploaded_file:
+    df = pd.read_excel(uploaded_file, engine='odf')
+    df['data'] = pd.to_datetime(df['data'], errors='coerce')
+    df = df.dropna(subset=['data'])
+    st.session_state['shared_df'] = df  # Записваме го в "паметта" на сесията
+
+# Използваме файла от паметта, ако съществува
+df = st.session_state['shared_df']
+
+if df is not None:
+    # Тук продължава целият ти код 1 към 1...
+    # (Глобален филтър, Търсене на колони, Табове и т.н.)
     # Зареждане и основно почистване
     df = pd.read_excel(uploaded_file, engine='odf')
     df['data'] = pd.to_datetime(df['data'], errors='coerce')

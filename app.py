@@ -51,14 +51,14 @@ if df_main is not None:
             fig.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", line=dict(color="#00CC96")))
             fig.add_trace(go.Scatter(x=df['data'], y=df[ratio_col[0]], name="Ratio", yaxis="y2", line=dict(color="#FFA15A")))
             fig.update_layout(template="plotly_dark", yaxis=dict(title="Цена"), yaxis2=dict(overlaying="y", side="right"), height=600)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="ratio_chart")
 
     with tabs[1]:
         fig_vp = go.Figure()
         fig_vp.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена"))
         fig_vp.add_trace(go.Histogram(y=df['price'], orientation='h', nbinsy=50, xaxis='x2', marker=dict(color='rgba(100,150,250,0.2)')))
         fig_vp.update_layout(template="plotly_dark", xaxis=dict(domain=[0.1, 1]), xaxis2=dict(overlaying='x', side='top', domain=[0, 0.15]), height=600)
-        st.plotly_chart(fig_vp, use_container_width=True)
+        st.plotly_chart(fig_vp, use_container_width=True, key="vol_profile_chart")
 
     with tabs[2]:
         if sup_col:
@@ -66,9 +66,9 @@ if df_main is not None:
             fig_s.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена"))
             fig_s.add_trace(go.Scatter(x=df['data'], y=df[sup_col[0]], name="Supply", yaxis="y2"))
             fig_s.update_layout(template="plotly_dark", yaxis2=dict(overlaying="y", side="right"), height=600)
-            st.plotly_chart(fig_s, use_container_width=True)
+            st.plotly_chart(fig_s, use_container_width=True, key="supply_chart")
 
-   with tabs[3]:
+    with tabs[3]:
         st.subheader("📅 Минимална и Максимална Цена по Години")
         df['year'] = df['data'].dt.year
         yearly_price = df.groupby('year')['price'].agg(['min', 'max']).reset_index()
@@ -77,21 +77,20 @@ if df_main is not None:
         
         # Графика
         fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, text_auto='.2f')
-        st.plotly_chart(fig_y, use_container_width=True, key="yearly_chart_fixed")
+        st.plotly_chart(fig_y, use_container_width=True, key="yearly_chart")
         
         # Таблица
         st.dataframe(yearly_price.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
 
-        # --- НОВИТЕ МЕТРИКИ ---
+        # СРЕДНИ СТОЙНОСТИ
         avg_diff = yearly_price['разлика'].mean()
         avg_x = yearly_price['x (ръст)'].mean()
         avg_pct = (avg_x - 1) * 100
         
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Средна разлика", f"${avg_diff:,.2f}")
-        col_b.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
-        col_c.metric("Среден ръст (%)", f"{avg_pct:,.2f}%")
-        # ----------------------
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Средна разлика", f"${avg_diff:,.2f}")
+        c2.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
+        c3.metric("Среден ръст (%)", f"{avg_pct:,.2f}%")
 
     with tabs[4]:
         df['MA50'] = df['price'].rolling(50).mean()
@@ -101,11 +100,11 @@ if df_main is not None:
         fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA50'], name="MA 50", line=dict(color="yellow")))
         fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA200'], name="MA 200", line=dict(color="red")))
         fig_ma.update_layout(template="plotly_dark", height=600)
-        st.plotly_chart(fig_ma, use_container_width=True)
+        st.plotly_chart(fig_ma, use_container_width=True, key="ma_chart")
 
     with tabs[5]:
         if mcap_col and sup_col:
-            st.plotly_chart(px.scatter(df, x=sup_col[0], y=mcap_col[0], color='price', template="plotly_dark"), use_container_width=True)
+            st.plotly_chart(px.scatter(df, x=sup_col[0], y=mcap_col[0], color='price', template="plotly_dark"), use_container_width=True, key="cap_sup_chart")
 
     with tabs[6]:
         df['vol'] = df['price'].pct_change() * 100
@@ -115,7 +114,7 @@ if df_main is not None:
         for h in [0, 5, 10, -5, -10]:
             fig_sync.add_hline(y=h, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
         fig_sync.update_layout(template="plotly_dark", height=700)
-        st.plotly_chart(fig_sync, use_container_width=True)
+        st.plotly_chart(fig_sync, use_container_width=True, key="volatility_chart")
 
     with tabs[7]:
         if mcap_col and sup_col:
@@ -139,7 +138,6 @@ if df_main is not None:
 
     with tabs[9]:
         df['EMA55'] = df['price'].ewm(span=55, adjust=False).mean()
-        # Опростена логика за Bull/Bear Mean за стабилност
         b_mean = df[df['price'] > df['EMA55']]['price'].mean()
         s_mean = df[df['price'] < df['EMA55']]['price'].mean()
         c1, c2 = st.columns(2)
@@ -149,7 +147,7 @@ if df_main is not None:
         fig_e.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.3))
         fig_e.add_trace(go.Scatter(x=df['data'], y=df['EMA55'], name="EMA 55"))
         fig_e.update_layout(template="plotly_dark", height=500)
-        st.plotly_chart(fig_e, use_container_width=True)
+        st.plotly_chart(fig_e, use_container_width=True, key="ema_mean_chart")
 
     st.write("---")
     st.metric("Макс Цена (4г)", f"${df['price'].max():,.2f}")

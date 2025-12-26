@@ -78,15 +78,30 @@ if df_main is not None:
         st.plotly_chart(fig_y, use_container_width=True)
         st.dataframe(yearly_price.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
 
-    with tabs[4]:
-        df['MA50'] = df['price'].rolling(50).mean()
-        df['MA200'] = df['price'].rolling(200).mean()
-        fig_ma = go.Figure()
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.4))
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA50'], name="MA 50", line=dict(color="yellow")))
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA200'], name="MA 200", line=dict(color="red")))
-        fig_ma.update_layout(template="plotly_dark", height=600)
-        st.plotly_chart(fig_ma, use_container_width=True)
+   # 4. Годишни (Твоят код + Екстри)
+    with tabs[3]:
+        st.subheader("📅 Минимална и Максимална Цена по Години")
+        df['year'] = df['data'].dt.year
+        yearly_price = df.groupby('year')['price'].agg(['min', 'max']).reset_index()
+        yearly_price['разлика'] = yearly_price['max'] - yearly_price['min']
+        yearly_price['x (ръст)'] = yearly_price['max'] / yearly_price['min']
+        
+        yearly_price_table = yearly_price[['year', 'min', 'разлика', 'max', 'x (ръст)']]
+        fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, text_auto='.2f')
+        st.plotly_chart(fig_y, use_container_width=True)
+        
+        st.write("### Таблица на екстремумите")
+        st.dataframe(yearly_price_table.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
+
+        avg_diff = yearly_price['разлика'].mean()
+        avg_growth_pct = (yearly_price['x (ръст)'].mean() - 1) * 100
+        avg_x = yearly_price['x (ръст)'].mean()
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Средна цена разлика", f"{avg_diff:,.2f}")
+        c2.metric("Среден ръст (%)", f"{avg_growth_pct:,.2f}%")
+        c3.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
+
 
     with tabs[5]:
         if mcap_col and sup_col:

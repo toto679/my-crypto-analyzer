@@ -137,7 +137,7 @@ if df_main is not None:
                 t_price = math.floor((max_mcap * (100 + d) / 100) / last_supply)
                 cols[i].metric(f"{d}%", f"${t_price:,}")
 
-    with tabs[9]:
+     with tabs[9]:
         df['EMA55'] = df['price'].ewm(span=55, adjust=False).mean()
         # Опростена логика за Bull/Bear Mean за стабилност
         b_mean = df[df['price'] > df['EMA55']]['price'].mean()
@@ -151,7 +151,7 @@ if df_main is not None:
         fig_e.update_layout(template="plotly_dark", height=500)
         st.plotly_chart(fig_e, use_container_width=True)
 
-    st.write("---")
+st.write("---")
     st.metric("Макс Цена (4г)", f"${df['price'].max():,.2f}")
 
 else:

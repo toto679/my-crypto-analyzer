@@ -20,6 +20,14 @@ if uploaded_file:
     df = pd.read_excel(uploaded_file, engine='odf')
     df['data'] = pd.to_datetime(df['data'], errors='coerce')
     df = df.dropna(subset=['data'])
+    # След като заредиш и пречистиш df, го запиши в session_state
+if uploaded_file:
+    df = pd.read_excel(uploaded_file, engine='odf')
+    # ... твоят код за почистване и филтриране ...
+    
+    # ТОВА Е НОВОТО:
+    st.session_state['shared_df'] = df  # Запазваме таблицата за другите страници
+    st.session_state['file_loaded'] = True
     
     # Глобален филтър за последните 4 години
     four_years_ago = datetime.now() - timedelta(days=4*365)

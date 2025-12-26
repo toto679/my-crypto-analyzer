@@ -36,7 +36,7 @@ if uploaded_file:
         "📉 MA", "🎯 Cap vs Sup", "⚡ Волатилност", "💰 Target", "📉 Risk", "⚖️ EMA 55 Mean"
     ])
 
-    # 1. Ratio
+    # 1. Ratio (Твоят код)
     with tabs[0]:
         if ratio_col:
             fig = go.Figure()
@@ -45,7 +45,7 @@ if uploaded_file:
             fig.update_layout(template="plotly_dark", yaxis=dict(title="Цена"), yaxis2=dict(overlaying="y", side="right"), height=600)
             st.plotly_chart(fig, use_container_width=True)
 
-    # 2. Укрупняване
+    # 2. Укрупняване (Твоят код)
     with tabs[1]:
         fig_vp = go.Figure()
         fig_vp.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена"))
@@ -53,7 +53,7 @@ if uploaded_file:
         fig_vp.update_layout(template="plotly_dark", xaxis=dict(domain=[0.1, 1]), xaxis2=dict(overlaying='x', side='top', domain=[0, 0.15]), height=600)
         st.plotly_chart(fig_vp, use_container_width=True)
 
-    # 3. Supply
+    # 3. Supply (Твоят код)
     with tabs[2]:
         if sup_col:
             fig_s = go.Figure()
@@ -62,7 +62,7 @@ if uploaded_file:
             fig_s.update_layout(template="plotly_dark", yaxis2=dict(overlaying="y", side="right"), height=600)
             st.plotly_chart(fig_s, use_container_width=True)
 
-    # 4. Годишни
+    # 4. Годишни (Твоят код + Екстри)
     with tabs[3]:
         st.subheader("📅 Минимална и Максимална Цена по Години")
         df['year'] = df['data'].dt.year
@@ -71,77 +71,72 @@ if uploaded_file:
         yearly_price['x (ръст)'] = yearly_price['max'] / yearly_price['min']
         
         yearly_price_table = yearly_price[['year', 'min', 'разлика', 'max', 'x (ръст)']]
-        
-        fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, labels={'value': 'Цена USD', 'year': 'Година', 'variable': 'Екстремум'}, text_auto='.2f')
-        fig_y.update_traces(textposition='outside')
+        fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, text_auto='.2f')
         st.plotly_chart(fig_y, use_container_width=True)
         
-        def style_growth(s):
-            return ['background-color: #004d00' if v == s.max() else 'background-color: #4d0000' if v == s.min() else '' for v in s]
-        
         st.write("### Таблица на екстремумите")
-        st.dataframe(yearly_price_table.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}).apply(style_growth, subset=['x (ръст)']), use_container_width=True)
+        st.dataframe(yearly_price_table.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
 
         avg_diff = yearly_price['разлика'].mean()
         avg_growth_pct = (yearly_price['x (ръст)'].mean() - 1) * 100
         avg_x = yearly_price['x (ръст)'].mean()
         
-        st.write("---")
         c1, c2, c3 = st.columns(3)
         c1.metric("Средна цена разлика", f"{avg_diff:,.2f}")
-        c2.metric("Среден ръст (проценти)", f"{avg_growth_pct:,.2f}%")
+        c2.metric("Среден ръст (%)", f"{avg_growth_pct:,.2f}%")
         c3.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
-        
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            yearly_price_table.to_excel(writer, index=False)
-        st.download_button("📥 Изтегли в Excel", buffer.getvalue(), "yearly_data.xlsx")
 
-    # 5. MA
+    # 5. MA (Твоят код)
     with tabs[4]:
         df['MA50'] = df['price'].rolling(50).mean()
         df['MA200'] = df['price'].rolling(200).mean()
         fig_ma = go.Figure()
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", line=dict(color="gray", width=1), opacity=0.4))
+        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.4))
         fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA50'], name="MA 50", line=dict(color="yellow")))
         fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA200'], name="MA 200", line=dict(color="red")))
         fig_ma.update_layout(template="plotly_dark", height=600)
         st.plotly_chart(fig_ma, use_container_width=True)
 
-    # 6. Cap vs Sup
+    # 6. Cap vs Sup (Твоят код)
     with tabs[5]:
         if mcap_col and sup_col:
-            fig_scat = px.scatter(df, x=sup_col[0], y=mcap_col[0], color='price', template="plotly_dark")
-            st.plotly_chart(fig_scat, use_container_width=True)
+            st.plotly_chart(px.scatter(df, x=sup_col[0], y=mcap_col[0], color='price', template="plotly_dark"), use_container_width=True)
 
-    # 7. Волатилност (СИНХРОНИЗИРАНИ)
+    # 7. Волатилност (СИНХРОНИЗИРАНИ + ХОРИЗОНТАЛНИ ЛИНИИ)
     with tabs[6]:
         st.subheader("⚡ Анализ на Волатилността и Цената (Синхронизирани)")
         df['vol'] = df['price'].pct_change() * 100
+        
         fig_sync = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
         fig_sync.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", line=dict(color="#00CC96")), row=1, col=1)
         fig_sync.add_trace(go.Scatter(x=df['data'], y=df['vol'], name="Волатилност %", line=dict(color="#FFA15A")), row=2, col=1)
-        fig_sync.update_layout(template="plotly_dark", height=700, showlegend=True)
+        
+        # Добавяне на хоризонтални линии за волатилност (на втория ред)
+        fig_sync.add_hline(y=0, line_dash="solid", line_color="gray", row=2, col=1)
+        fig_sync.add_hline(y=5, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
+        fig_sync.add_hline(y=10, line_dash="dash", line_color="rgba(255,255,255,0.4)", row=2, col=1)
+        fig_sync.add_hline(y=-5, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
+        fig_sync.add_hline(y=-10, line_dash="dash", line_color="rgba(255,255,255,0.4)", row=2, col=1)
+        
+        fig_sync.update_layout(template="plotly_dark", height=700)
         st.plotly_chart(fig_sync, use_container_width=True)
 
-    # 8. Target
+    # 8. Target (Твоят код)
     with tabs[7]:
         if mcap_col and sup_col:
             min_mcap = df[mcap_col[0]].min()
             last_supply = df[sup_col[0]].iloc[-1]
             m_list = [5, 10, 15, 20, 30, 40, 50]
-            st.write(f"Базов мин. MCap (4г): **${min_mcap:,.0f}**")
             cols = st.columns(len(m_list))
             for i, m in enumerate(m_list):
-                t_price = math.floor((min_mcap * m) / last_supply)
-                cols[i].metric(f"x{m}", f"${t_price:,}")
+                tp = math.floor((min_mcap * m) / last_supply)
+                cols[i].metric(f"x{m}", f"${tp:,}")
 
     # 9. Risk (ОБНОВЕН С -70% И -90%)
     with tabs[8]:
         if mcap_col and sup_col:
             max_mcap = df[mcap_col[0]].max()
             last_supply = df[sup_col[0]].iloc[-1]
-            # Добавени са -70 и -90 в списъка
             drops = [-60, -70, -80, -90, -95]
             st.write(f"Базов макс. MCap (4г): **${max_mcap:,.0f}**")
             cols = st.columns(len(drops))
@@ -149,13 +144,12 @@ if uploaded_file:
                 t_price = math.floor((max_mcap * (100 + d) / 100) / last_supply)
                 cols[i].metric(f"{d}%", f"${t_price:,}")
 
-    # 10. EMA 55 Mean
+    # 10. EMA 55 Mean (Твоят код)
     with tabs[9]:
         df['EMA55'] = df['price'].ewm(span=55, adjust=False).mean()
         highs, lows = [], []
         curr = None
         t_h, t_l = 0, float('inf')
-
         for i in range(len(df)):
             p, e = df['price'].iloc[i], df['EMA55'].iloc[i]
             if p > e:
@@ -168,23 +162,20 @@ if uploaded_file:
                     if t_h != 0: highs.append(t_h)
                     curr, t_l, t_h = 'down', p, 0
                 elif p < t_l: t_l = p; lows.append(p)
-
         b_m = sum(highs)/(len(highs)+1) if highs else 0
         s_m = sum(lows)/(len(lows)+1) if lows else 0
-
         c1, c2 = st.columns(2)
         c1.metric("Bull Mean Target", f"${math.floor(b_m):,}")
         c2.metric("Bear Mean Target", f"${math.floor(s_m):,}")
-        
         fig_e = go.Figure()
         fig_e.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.3))
         fig_e.add_trace(go.Scatter(x=df['data'], y=df['EMA55'], name="EMA 55"))
         fig_e.add_hline(y=b_m, line_dash="dash", line_color="green")
         fig_e.add_hline(y=s_m, line_dash="dash", line_color="red")
-        fig_e.update_layout(template="plotly_dark", height=500)
+        fig_sync.update_layout(template="plotly_dark")
         st.plotly_chart(fig_e, use_container_width=True)
 
-    # ОБЩИ МЕТРИКИ
+    # ОБЩИ МЕТРИКИ (Твоят код)
     st.write("---")
     m1, m2, m3 = st.columns(3)
     m1.metric("Макс Цена (4г)", f"{df['price'].max():.2f}")

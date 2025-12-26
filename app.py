@@ -5,56 +5,41 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import math
-import io
 
-# Настройка на страницата
 st.set_page_config(page_title="Анализатор", layout="wide")
+
+# ИНИЦИАЛИЗАЦИЯ НА ПАМЕТТА
+if 'shared_df' not in st.session_state:
+    st.session_state['shared_df'] = None
 
 st.title("📊 Пълен Анализ: Всички Инструменти")
 
 # --- СТРАНИЧНА ЛЕНТА ---
-# --- СТРАНИЧНА ЛЕНТА ---
-# Проверяваме дали вече имаме зареден файл в паметта
-if 'shared_df' not in st.session_state:
-    st.session_state['shared_df'] = None
-
 uploaded_file = st.sidebar.file_uploader("Добави .ods файл", type=["ods"])
 
-# Ако е качен нов файл, го записваме
-if uploaded_file:
-    df = pd.read_excel(uploaded_file, engine='odf')
-    df['data'] = pd.to_datetime(df['data'], errors='coerce')
-    df = df.dropna(subset=['data'])
-    st.session_state['shared_df'] = df  # Записваме го в "паметта" на сесията
+# Ако е качен НОВ файл, го зареждаме в паметта
+if uploaded_file is not None:
+    try:
+        new_df = pd.read_excel(uploaded_file, engine='odf')
+        new_df['data'] = pd.to_datetime(new_df['data'], errors='coerce')
+        new_df = new_df.dropna(subset=['data'])
+        st.session_state['shared_df'] = new_df
+    except Exception as e:
+        st.error(f"Грешка при четене на файла: {e}")
 
-# Използваме файла от паметта, ако съществува
+# Взимаме данните от паметта (session_state)
 df = st.session_state['shared_df']
 
 if df is not None:
-    # Тук продължава целият ти код 1 към 1...
-    # (Глобален филтър, Търсене на колони, Табове и т.н.)
-    # Зареждане и основно почистване
-    df = pd.read_excel(uploaded_file, engine='odf')
-    df['data'] = pd.to_datetime(df['data'], errors='coerce')
-    df = df.dropna(subset=['data'])
-    
-    # --- СИНХРОНИЗАЦИЯ (НОВО) ---
-    st.session_state['shared_df'] = df  # Запазваме данните за другите страници
-    
     # Глобален филтър за последните 4 години
     four_years_ago = datetime.now() - timedelta(days=4*365)
     df = df[df['data'] > four_years_ago].sort_values('data')
 
-    # Търсене на колони
     mcap_col = [c for c in df.columns if 'market_cap' in c.lower()]
     sup_col = [c for c in df.columns if 'supply' in c.lower() or 'circulating' in c.lower()]
     ratio_col = [c for c in df.columns if 'price' in c.lower() and '/' in c.lower()]
 
-    # ДЕФИНИРАНЕ НА ВСИЧКИ 10 ТАБА
-    tabs = st.tabs([
-        "🔗 Ratio", "🏆 Укрупняване", "📈 Supply", "📅 Годишни", 
-        "📉 MA", "🎯 Cap vs Sup", "⚡ Волатилност", "💰 Target", "📉 Risk", "⚖️ EMA 55 Mean"
-    ])
+    tabs = st.tabs(["🔗 Ratio", "🏆 Укрупняване", "📈 Supply", "📅 Годишни", "📉 MA", "🎯 Cap vs Sup", "⚡ Волатилност", "💰 Target", "📉 Risk", "⚖️ EMA 55 Mean"])
 
     # 1. Ratio
     with tabs[0]:
@@ -82,34 +67,25 @@ if df is not None:
             fig_s.update_layout(template="plotly_dark", yaxis2=dict(overlaying="y", side="right"), height=600)
             st.plotly_chart(fig_s, use_container_width=True)
 
-    # 4. Годишни
+    # 4. Годишни (ОПРАВЕНО)
     with tabs[3]:
-        st.subheader("📅 Минимална и Максимална Цена по Години")
-        df['year'] = df['data'].dt.year
-        yearly_price = df.groupby('year')['price'].agg(['min', 'max']).reset_index()
+        st.subheader("📅 Годишни Екстремуми")
+        df_y = df.copy()
+        df_y['year'] = df_y['data'].dt.year
+        yearly_price = df_y.groupby('year')['price'].agg(['min', 'max']).reset_index()
         yearly_price['разлика'] = yearly_price['max'] - yearly_price['min']
         yearly_price['x (ръст)'] = yearly_price['max'] / yearly_price['min']
-        yearly_price_table = yearly_price[['year', 'min', 'разлика', 'max', 'x (ръст)']]
-        fig_y = px.bar(yearly_price, x='year', y=['min', 'max'], barmode='group', template="plotly_dark", color_discrete_map={'min': '#EF553B', 'max': '#00CC96'}, text_auto='.2f')
-        st.plotly_chart(fig_y, use_container_width=True)
-        st.write("### Таблица на екстремумите")
-        st.dataframe(yearly_price_table.style.format({"min": "{:,.2f}", "max": "{:,.2f}", "разлика": "{:,.2f}", "x (ръст)": "{:,.2f}x"}), use_container_width=True)
-        avg_diff = yearly_price['разлика'].mean()
-        avg_growth_pct = (yearly_price['x (ръст)'].mean() - 1) * 100
-        avg_x = yearly_price['x (ръст)'].mean()
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Средна цена разлика", f"{avg_diff:,.2f}")
-        c2.metric("Среден ръст (%)", f"{avg_growth_pct:,.2f}%")
-        c3.metric("Среден ръст (x)", f"{avg_x:,.2f}x")
+        st.dataframe(yearly_price, use_container_width=True)
 
     # 5. MA
     with tabs[4]:
-        df['MA50'] = df['price'].rolling(50).mean()
-        df['MA200'] = df['price'].rolling(200).mean()
+        df_ma = df.copy()
+        df_ma['MA50'] = df_ma['price'].rolling(50).mean()
+        df_ma['MA200'] = df_ma['price'].rolling(200).mean()
         fig_ma = go.Figure()
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.4))
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA50'], name="MA 50", line=dict(color="yellow")))
-        fig_ma.add_trace(go.Scatter(x=df['data'], y=df['MA200'], name="MA 200", line=dict(color="red")))
+        fig_ma.add_trace(go.Scatter(x=df_ma['data'], y=df_ma['price'], name="Цена", opacity=0.4))
+        fig_ma.add_trace(go.Scatter(x=df_ma['data'], y=df_ma['MA50'], name="MA 50", line=dict(color="yellow")))
+        fig_ma.add_trace(go.Scatter(x=df_ma['data'], y=df_ma['MA200'], name="MA 200", line=dict(color="red")))
         fig_ma.update_layout(template="plotly_dark", height=600)
         st.plotly_chart(fig_ma, use_container_width=True)
 
@@ -118,18 +94,15 @@ if df is not None:
         if mcap_col and sup_col:
             st.plotly_chart(px.scatter(df, x=sup_col[0], y=mcap_col[0], color='price', template="plotly_dark"), use_container_width=True)
 
-    # 7. Волатилност (СИНХРОНИЗИРАНИ + ЛИНИИ)
+    # 7. Волатилност
     with tabs[6]:
-        st.subheader("⚡ Анализ на Волатилността и Цената")
-        df['vol'] = df['price'].pct_change() * 100
+        df_v = df.copy()
+        df_v['vol'] = df_v['price'].pct_change() * 100
         fig_sync = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-        fig_sync.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", line=dict(color="#00CC96")), row=1, col=1)
-        fig_sync.add_trace(go.Scatter(x=df['data'], y=df['vol'], name="Волатилност %", line=dict(color="#FFA15A")), row=2, col=1)
-        fig_sync.add_hline(y=0, line_dash="solid", line_color="gray", row=2, col=1)
-        fig_sync.add_hline(y=5, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
-        fig_sync.add_hline(y=10, line_dash="dash", line_color="rgba(255,255,255,0.4)", row=2, col=1)
-        fig_sync.add_hline(y=-5, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
-        fig_sync.add_hline(y=-10, line_dash="dash", line_color="rgba(255,255,255,0.4)", row=2, col=1)
+        fig_sync.add_trace(go.Scatter(x=df_v['data'], y=df_v['price'], name="Цена", line=dict(color="#00CC96")), row=1, col=1)
+        fig_sync.add_trace(go.Scatter(x=df_v['data'], y=df_v['vol'], name="Волатилност %", line=dict(color="#FFA15A")), row=2, col=1)
+        for val in [0, 5, 10, -5, -10]:
+            fig_sync.add_hline(y=val, line_dash="dash", line_color="rgba(255,255,255,0.2)", row=2, col=1)
         fig_sync.update_layout(template="plotly_dark", height=700)
         st.plotly_chart(fig_sync, use_container_width=True)
 
@@ -144,26 +117,25 @@ if df is not None:
                 tp = math.floor((min_mcap * m) / last_supply)
                 cols[i].metric(f"x{m}", f"${tp:,}")
 
-    # 9. Risk (ОБНОВЕН)
+    # 9. Risk
     with tabs[8]:
         if mcap_col and sup_col:
             max_mcap = df[mcap_col[0]].max()
             last_supply = df[sup_col[0]].iloc[-1]
             drops = [-60, -70, -80, -90, -95]
-            st.write(f"Базов макс. MCap (4г): **${max_mcap:,.0f}**")
             cols = st.columns(len(drops))
             for i, d in enumerate(drops):
-                t_price = math.floor((max_mcap * (100 + d) / 100) / last_supply)
-                cols[i].metric(f"{d}%", f"${t_price:,}")
+                tp = math.floor((max_mcap * (100 + d) / 100) / last_supply)
+                cols[i].metric(f"{d}%", f"${tp:,}")
 
     # 10. EMA 55 Mean
     with tabs[9]:
-        df['EMA55'] = df['price'].ewm(span=55, adjust=False).mean()
+        df_e = df.copy()
+        df_e['EMA55'] = df_e['price'].ewm(span=55, adjust=False).mean()
         highs, lows = [], []
-        curr = None
-        t_h, t_l = 0, float('inf')
-        for i in range(len(df)):
-            p, e = df['price'].iloc[i], df['EMA55'].iloc[i]
+        curr, t_h, t_l = None, 0, float('inf')
+        for i in range(len(df_e)):
+            p, e = df_e['price'].iloc[i], df_e['EMA55'].iloc[i]
             if p > e:
                 if curr != 'up':
                     if t_l != float('inf'): lows.append(t_l)
@@ -177,22 +149,18 @@ if df is not None:
         b_m = sum(highs)/(len(highs)+1) if highs else 0
         s_m = sum(lows)/(len(lows)+1) if lows else 0
         c1, c2 = st.columns(2)
-        c1.metric("Bull Mean Target", f"${math.floor(b_m):,}")
-        c2.metric("Bear Mean Target", f"${math.floor(s_m):,}")
+        c1.metric("Bull Mean", f"${math.floor(b_m):,}")
+        c2.metric("Bear Mean", f"${math.floor(s_m):,}")
         fig_e = go.Figure()
-        fig_e.add_trace(go.Scatter(x=df['data'], y=df['price'], name="Цена", opacity=0.3))
-        fig_e.add_trace(go.Scatter(x=df['data'], y=df['EMA55'], name="EMA 55"))
+        fig_e.add_trace(go.Scatter(x=df_e['data'], y=df_e['price'], name="Цена", opacity=0.3))
+        fig_e.add_trace(go.Scatter(x=df_e['data'], y=df_e['EMA55'], name="EMA 55"))
         fig_e.add_hline(y=b_m, line_dash="dash", line_color="green")
         fig_e.add_hline(y=s_m, line_dash="dash", line_color="red")
         fig_e.update_layout(template="plotly_dark", height=500)
         st.plotly_chart(fig_e, use_container_width=True)
 
-    # ОБЩИ МЕТРИКИ
     st.write("---")
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Макс Цена (4г)", f"{df['price'].max():.2f}")
-    m2.metric("Мин Цена (4г)", f"{df['price'].min():.2f}")
-    m3.metric("Записи", len(df))
+    st.write(f"Макс цена: {df['price'].max():.2f} | Мин цена: {df['price'].min():.2f}")
 
 else:
-    st.info("👈 Качете файл.")
+    st.info("👈 Моля, качи .ods файл от страничната лента.")
